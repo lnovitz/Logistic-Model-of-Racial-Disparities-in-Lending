@@ -1,0 +1,61 @@
+---
+title: "Racial Disparities in Lending"
+output: html_document
+---
+
+```{r, message=FALSE}
+library(tidyverse) #for read.csv function
+```
+
+Read in this nice dataset of loan applicants with 4 variables - deny (0 or 1), applicant_race, applicant_income
+```{r, message=FALSE}
+hmda_ga <- read_csv("https://www.dropbox.com/s/anos46sh38wnver/hmda_fulton_GA_2016_modified.csv?dl=1") %>% 
+  mutate(applicant_race = fct_relevel(applicant_race, "White")) %>% 
+  select(-loan_amount_to_income)
+```
+
+Then we fit a logistic model to predict whether a loan applicant is denied based on their race.
+```{r}
+glm.deny <- glm(deny ~ applicant_race,
+                      data=hmda_ga,
+                      family = binomial(link = "logit"))
+summary(glm.deny)
+```
+
+Then we find the odds that an applicant is denied a loan because they are African American or black.
+```{r}
+odds = exp(coef(glm.deny)[2])
+odds
+```
+
+Being African American/Black will increase the odds that a loan application will be denied by 3.5. The odds will be multiplied by 3.5. YIKES. This model suggests discrimination plays a role in lending.
+
+But there could be other factors that come into play - like loan amount, applicant income, minority population, and the ratio of median income of census tract to median income of metro area. Let's control for those variables too. Below we fit a model including all those variables and applicant race.
+
+```{r}
+glm.deny_all <- glm(deny ~ applicant_race + loan_amount_000s + applicant_income_000s + tract_to_msamd_income  + minority_population,
+                      data=hmda_ga,
+                      family = binomial(link = "logit"))
+summary(glm.deny_all)
+```
+
+We compute the odds that an applicant is denied based on them being African American/Black, again, and still find discrimination plays a role in lending, big time. Being African American/Black will multiply the odds by 2.7 that they are denied a loan.
+
+```{r}
+odds = exp(coef(glm.deny_all)[2])
+odds
+```
+
+We can compute the probability of denial as well.
+
+```{r}
+prob2 = exp(glm.deny_all$coefficients)/(1+exp(glm.deny_all$coefficients))
+prob2
+```
+
+The probability of an applicant being denied because they are black is still around 73%, even when controlling for variables such as income and loan amount.
+
+Good news: stats is cool.
+Bad news: discrimination is a thing. 
+
+
